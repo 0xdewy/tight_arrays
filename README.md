@@ -48,12 +48,12 @@ contract YourContract {
 ```
 
 ## Gas Efficiency
-This library generally adds 1% gas overhead when ignoring storage savings, but since storage is such a large percentage of the gas costs, this library can save up to 45% on gas costs depending on the data size used
+This library generally adds 1% gas overhead when ignoring storage savings, but the storage savings can be as high as 45% depending on the data type. I benchmarked all usage (push,set,get,pop) in 100 iterations for different sizes to get a rough idea of the gas savings.
 
 | push/get/set/pop   | Normal Array | Packed Array | Percentage |
 |--------------------|--------------|--------------|------------|
-| Uint136 (100 vals) | 2,280,408    | 1,237,606    | -45.72%    |
-| Address (100 vals) | 2,280,410    | 1,436,755    | -36.99%    |
+| Uint136 (100 vals) | 2,383,738    | 1,463,920    | -38.56%    |
+| Address (100 vals) | 2,382,748    | 1,661,627    | -31.02%    |
 | Uint96 (100 vals)  | 1,303,925    | 1,104,900    | -15.26%    |
 
 
@@ -93,7 +93,6 @@ The amount of gas saved depends on how nicely the data fits into 256 bits by def
 | 240     | 16            |
 | 248     | 8             |
 | 256     | 0             |
-
 
 
 ## Build

@@ -31,28 +31,6 @@ contract TightAddressGasTest is Test {
         console.log("gas packed array push/set/get/pop: ", gas1 - gasleft());
     }
 
-    function test_gas_all_operations_100() public {
-        unchecked {
-            uint256 gas0 = gasleft();
-            for (uint256 i = 0; i < 100; i++) {
-                addrArr.push(CAFE);
-                temp = addrArr[0];
-                addrArr[i] = BEEF;
-            }
-            addrArr.pop();
-            console.log("gas regular array push/set/get/pop: ", gas0 - gasleft());
-
-            uint256 gas1 = gasleft();
-            for (uint256 i = 0; i < 100; i++) {
-                arr.push(CAFE);
-                temp2 = arr.get(i);
-                arr.set(i, BEEF);
-            }
-            arr.pop();
-            console.log("gas packed array: push/set/get/pop ", gas1 - gasleft());
-        }
-    }
-
     function test_gas_all_operations_100_addr() public {
         unchecked {
             uint256 gas0 = gasleft();
