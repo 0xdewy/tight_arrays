@@ -82,7 +82,6 @@ library Array {
             let storageSlot := keccak256(0x0, 0x20)
             let storageSlotIndex := add(storageSlot, startSlot)
 
-            // TODO: rename and optimize
             let remainder := sub(256, bits)
             switch gt(offset, remainder)
             case 1 {
@@ -284,10 +283,10 @@ library Array {
             let storageSlotIndex := add(storageSlot, startSlot)
             let cachedStorageValue := sload(storageSlotIndex)
 
-            let newAddrsLen := mload(vals)
+            let numValsToAdd := mload(vals)
             let i := 0
 
-            for {} lt(i, newAddrsLen) { i := add(i, 1) } {
+            for {} lt(i, numValsToAdd) { i := add(i, 1) } {
                 let value := mload(add(add(vals, 32), mul(i, 32)))
                 let remainder := sub(256, bits)
 
@@ -317,14 +316,12 @@ library Array {
             if gt(cachedStorageValue, 0) { sstore(storageSlotIndex, cachedStorageValue) }
 
             // Increment array
-            sstore(arraySlot, add(newAddrsLen, arrayLen)) // increment array length
+            sstore(arraySlot, add(numValsToAdd, arrayLen)) // increment array length
         }
     }
 
     // ==========================================Slice=================================================
 
-    // Gets addresses starting at fromIndex..toIndex (does not include toIndex)
-    // Note: returned addresses are padded to 32 bytes
     function slice(Addresses storage arr, uint256 fromIndex, uint256 toIndex)
         internal
         view
@@ -341,8 +338,6 @@ library Array {
         }
     }
 
-    // Gets uints starting at fromIndex..toIndex (does not include toIndex)
-    // Note: returned uints are padded to 32 bytes
     function slice(Uint88 storage arr, uint256 fromIndex, uint256 toIndex)
         internal
         view
@@ -694,7 +689,6 @@ library Array {
             switch gt(offset, remainder)
             // value exists across 2 storage slots
             case 1 {
-                // TODO: fuzz this
                 let sliceLength := sub(bitSize, sub(256, offset))
                 sstore(storageSlotIndex, or(sload(storageSlotIndex), shr(sliceLength, value)))
                 sstore(add(storageSlotIndex, 1), shl(sub(256, sliceLength), value))
@@ -708,9 +702,6 @@ library Array {
         }
     }
 
-    /* 
-      - TODO: verify that importing this library doesn't bloat deployments
-    */
     struct Addresses {
         uint256[] slots;
     }

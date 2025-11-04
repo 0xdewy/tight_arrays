@@ -2,7 +2,7 @@
 
 ## Overview 
 
-This library creates tightly packed arrays of any size, using 100% of the storage space available. It does this by storing values across 2 storage slots when necessary.
+This library creates tightly packed arrays of any size, using 100% of the storage space available. It does this by storing a particular value across 2 storage slots when necessary.
 
 By default Solidity will try to fit as many array elements into a 256 bit storage as possible but it avoids storing values across 2 storage slots. For addresses/uint136-184 it is much more efficient to split the value across storage slots and reconstruct the value when needed.
 
@@ -48,15 +48,16 @@ contract YourContract {
 ```
 
 ## Gas Efficiency
-This library generally adds 1-2% of gas overhead when ignoring storage savings, but since storage is such a large percentage of the gas costs, this library can save up to 45% on gas costs depending on the data size used
+This library generally adds 1% gas overhead when ignoring storage savings, but since storage is such a large percentage of the gas costs, this library can save up to 45% on gas costs depending on the data size used
 
-| Operation          | Normal Array | Packed Array | Percentage |
+| push/get/set/pop   | Normal Array | Packed Array | Percentage |
 |--------------------|--------------|--------------|------------|
 | Uint136 (100 vals) | 2,280,408    | 1,237,606    | -45.72%    |
 | Address (100 vals) | 2,280,410    | 1,436,755    | -36.99%    |
+| Uint96 (100 vals)  | 1,303,925    | 1,104,900    | -15.26%    |
 
 
-The amount gas saved depends on how nicely the data fits into 256 bits by default. Best to use this library only with values that leave a large remainder:
+The amount of gas saved depends on how nicely the data fits into 256 bits by default. Best to use this library only with values that leave a large remainder:
 
 | Bitsize | 256 % Bitsize |
 |---------|---------------|
