@@ -16,7 +16,6 @@ contract TightUint136 is Test {
     uint136 public constant BEEF = uint136(0xBEEF);
 
     function test_gas_all_operations_1() public {
-        
         uint256 gas0 = gasleft();
         uint136s.push(CAFE);
         temp = uint136s[0];
@@ -31,7 +30,6 @@ contract TightUint136 is Test {
         arr.pop();
         console.log("PACKED: push/set/get/pop: ", gas1 - gasleft());
     }
-
 
     function test_gas_all_operations_100() public {
         unchecked {

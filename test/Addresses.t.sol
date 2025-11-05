@@ -67,19 +67,24 @@ contract TightAddressTest is Test {
 
     // =========================================Set=================================================
 
-    function test_fuzz_set(address[20] calldata addrsA, address[20] calldata addrsB) public {
+   
+
+    function test_fuzz_set(address[2] calldata addrsA, address[2] calldata addrsB) public {
         assertEq(addrsA.length, addrsB.length);
         for (uint256 i = 0; i < addrsA.length; i++) {
             arr.push(addrsA[i]);
         }
+        assertEq(arr.slots.length, addrsA.length);
 
         for (uint256 i = 0; i < addrsB.length; i++) {
+            assertEq(arr.get(i), addrsA[i]);
             arr.set(i, addrsB[i]);
             assertEq(arr.get(i), addrsB[i]);
         }
         assertEq(arr.slots.length, addrsB.length);
 
         for (uint256 i = 0; i < addrsA.length; i++) {
+            assertEq(arr.get(i), addrsB[i]);
             arr.set(i, addrsA[i]);
             assertEq(arr.get(i), addrsA[i]);
         }

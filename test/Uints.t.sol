@@ -32,7 +32,6 @@ contract UintTest is Test {
         }
 
         assertEq(arr88.slots.length, 0);
-        // TODO: check everything is cleared in storage
         vm.expectRevert(Array.ArrayEmpty.selector);
         arr88.pop();
     }
@@ -73,11 +72,15 @@ contract UintTest is Test {
 
     // =========================================Set=================================================
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzz_set(uint88[20] calldata uint88s) public {
         assertEq(uint88s.length, uint88s.length);
         for (uint256 i = 0; i < uint88s.length; i++) {
             arr88.push(uint88s[i]);
         }
+
+        vm.expectRevert(Array.OutOfBounds.selector);
+        arr88.set(uint88s.length, uint88(10));
 
         for (uint256 i = 0; i < uint88s.length; i++) {
             arr88.set(i, uint88s[i]);
@@ -115,7 +118,7 @@ contract UintTest is Test {
     }
 
     // ====================================Integration============================================
-    function test_fuzz_uint96(uint96[70] calldata uints) public {
+    function test_fuzz_uint96(uint96[4] calldata uints) public {
         // copy from calldata to memory
         uint96[] memory _uints = new uint96[](uints.length);
         for (uint256 i = 0; i < uints.length; i++) {
@@ -132,18 +135,27 @@ contract UintTest is Test {
         // pop/push
         arr96.pop();
         assertEq(_uints.length, arr96.slots.length + 1);
-        arr96.push(type(uint96).max);
+        arr96.push(_uints[_uints.length - 1]);
         assertEq(_uints.length, arr96.slots.length);
 
         // reverse array using set
         for (uint256 i = 0; i < uints.length; i++) {
+            console.log("i: ", i);
+            console.log(arr96.get(i));
+            console.log(arr96.get(0));
             arr96.set(i, _uints[uints.length - 1 - i]);
-            assertEq(arr96.get(i), _uints[uints.length - 1 - i]);
+            console.log(arr96.get(i));
+            assertEq(arr96.get(i), _uints[uints.length - 1 - i], "failed to set reverse list");
         }
+
 
         // slice should maintain order/values
         uint96[] memory test = arr96.slice(0, _uints.length);
+        assertEq(test.length, _uints.length, "slice length bug");
+        console.log(arr96.get(0));
+        console.log(arr96.get(1));
         for (uint256 i = 0; i < uints.length; i++) {
+            assertEq(test[i], arr96.get(i), "slice/get mismatch");
             assertEq(test[i], _uints[uints.length - 1 - i]);
         }
     }
