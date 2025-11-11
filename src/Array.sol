@@ -441,59 +441,71 @@ library Array {
         returns (uint256 pointer)
     {
         assembly {
-            if gt(toIndex, sload(slot)) {
+            let length := sload(slot)
+            switch gt(toIndex, length)
+            case 1 {
                 mstore(0x00, 0xb4120f14) // OutOfBounds()
                 revert(0x1c, 0x04)
             }
-
-            if iszero(gt(toIndex, fromIndex)) {
-                mstore(0x00, 0x561ce9bb) // InvalidRange()
-                revert(0x1c, 0x04)
+            default {
+                switch gt(toIndex, fromIndex)
+                case 0 {
+                    mstore(0x00, 0x561ce9bb) // InvalidRange()
+                    revert(0x1c, 0x04)
+                }
             }
 
             // calculate beginning of slice
             let numItems := sub(toIndex, fromIndex)
-            let bitsAtStart := mul(fromIndex, bitSize)
-            let startSlot := div(bitsAtStart, 256)
-            let offset := mod(bitsAtStart, 256)
 
-            // free enough memory for slice
+            // allocate memory
             pointer := mload(0x40)
             mstore(pointer, numItems)
-            let arrayEnd := add(pointer, mul(numItems, 32))
-            mstore(0x40, add(arrayEnd, 32))
+            mstore(0x40, add(add(pointer, 32), mul(numItems, 32)))
 
-            // load storage at first value of slice
+            // setup storage access
             mstore(0x00, slot)
             let storageSlot := keccak256(0x00, 0x20)
-            let storageSlotIndex := add(storageSlot, startSlot)
+            let bitsAtStart := mul(fromIndex, bitSize)
+            let storageSlotIndex := add(storageSlot, div(bitsAtStart, 256))
+            let offset := mod(bitsAtStart, 256)
             let cachedStorageValue := sload(storageSlotIndex)
 
-            let arrayPtr := pointer
+            let arrayPtr := add(pointer, 32)
             let i := fromIndex
-            // loop through storage and store each uint in memory
-            for {} lt(i, toIndex) { i := add(i, 1) } {
-                arrayPtr := add(arrayPtr, 32)
-                let remainder := sub(256, bitSize)
-                switch gt(offset, remainder)
-                // value is stored across 2 slots
-                case 1 {
-                    // grab first part
-                    let sliceLength := sub(bitSize, sub(256, offset))
-                    let highBits := shr(sub(offset, sliceLength), shl(offset, cachedStorageValue))
-                    // grab second part from next storage slot
-                    storageSlotIndex := add(storageSlotIndex, 1)
-                    cachedStorageValue := sload(storageSlotIndex)
-                    let lowBits := shr(sub(256, sliceLength), cachedStorageValue)
-                    mstore(arrayPtr, or(highBits, lowBits))
-                }
-                default { mstore(arrayPtr, shr(sub(remainder, offset), cachedStorageValue)) }
+            let valueMask := sub(shl(bitSize, 1), 1)
 
-                // if offset is 0, we are done with this storage slot
-                offset := mod(add(offset, bitSize), 256)
-                if iszero(offset) {
+            for {} lt(i, toIndex) {} {
+                let bitsLeftInSlot := sub(256, offset)
+
+                switch gt(bitSize, bitsLeftInSlot)
+                case 1 {
+                    // Cross-slot value - spans current and next slot
+                    let chunk2Size := sub(bitSize, bitsLeftInSlot)
+                    // First chunk: bitsLeftInSlot bits from current slot (right side)
+                    let chunk1 := and(cachedStorageValue, sub(shl(bitsLeftInSlot, 1), 1))
+                    // Second chunk: chunk2Size bits from next slot (left side)
+                    let nextSlotValue := sload(add(storageSlotIndex, 1))
+                    let chunk2 := shr(sub(256, chunk2Size), nextSlotValue)
+                    // Combine: chunk1 is the high bits, chunk2 is the low bits
+                    let combinedValue := or(shl(chunk2Size, chunk1), chunk2)
+                    mstore(arrayPtr, and(combinedValue, valueMask))
+                }
+                default {
+                    // Single-slot value
+                    let extractedValue := shr(sub(bitsLeftInSlot, bitSize), cachedStorageValue)
+                    mstore(arrayPtr, and(extractedValue, valueMask))
+                }
+
+                arrayPtr := add(arrayPtr, 32)
+                i := add(i, 1)
+                offset := add(offset, bitSize)
+
+                // Check if we crossed to next storage slot
+                if gt(offset, 255) {
                     storageSlotIndex := add(storageSlotIndex, 1)
                     cachedStorageValue := sload(storageSlotIndex)
+                    offset := sub(offset, 256)
                 }
             }
         }
@@ -668,53 +680,52 @@ library Array {
         _set(slot, index, uint256(value), 160);
     }
 
-    
     function _set(uint256 slot, uint256 index, uint256 value, uint256 bitSize) internal {
-    assembly {
-        // revert if index >= length
-        if iszero(lt(index, sload(slot))) {
-            mstore(0x00, 0xb4120f14) // OutOfBounds()
-            revert(0x1c, 0x04)
-        }
+        assembly {
+            // revert if index >= length
+            if iszero(lt(index, sload(slot))) {
+                mstore(0x00, 0xb4120f14) // OutOfBounds()
+                revert(0x1c, 0x04)
+            }
 
-        mstore(0x0, slot)
+            mstore(0x0, slot)
 
-        // Calculate storage position
-        let bitStart := mul(index, bitSize)
-        let startSlot := div(bitStart, 256)
-        let offset := mod(bitStart, 256)
-        let storageSlot := keccak256(0x0, 0x20)
-        let storageSlotIndex := add(storageSlot, startSlot)
+            // Calculate storage position
+            let bitStart := mul(index, bitSize)
+            let startSlot := div(bitStart, 256)
+            let offset := mod(bitStart, 256)
+            let storageSlot := keccak256(0x0, 0x20)
+            let storageSlotIndex := add(storageSlot, startSlot)
 
-        let bitsLeftInSlot := sub(256, offset)
+            let bitsLeftInSlot := sub(256, offset)
 
-        switch gt(bitSize, bitsLeftInSlot)
-        // Value spans two slots - use edge clearing with shr/shl
-        case 1 {
-            // First slot: clear right edge and set first chunk
-            let cleanedSlot1 := shl(bitsLeftInSlot, shr(bitsLeftInSlot, sload(storageSlotIndex)))
-            let chunk2Size := sub(bitSize, bitsLeftInSlot)
-            let chunk1 := shr(chunk2Size, value)
-            sstore(storageSlotIndex, or(cleanedSlot1, chunk1))
+            switch gt(bitSize, bitsLeftInSlot)
+            // Value spans two slots - use edge clearing with shr/shl
+            case 1 {
+                // First slot: clear right edge and set first chunk
+                let cleanedSlot1 := shl(bitsLeftInSlot, shr(bitsLeftInSlot, sload(storageSlotIndex)))
+                let chunk2Size := sub(bitSize, bitsLeftInSlot)
+                let chunk1 := shr(chunk2Size, value)
+                sstore(storageSlotIndex, or(cleanedSlot1, chunk1))
 
-            // Second slot: clear left edge and set second chunk  
-            storageSlotIndex := add(storageSlotIndex, 1)
-            let slot2 := sload(storageSlotIndex)
-            let cleanedSlot2 := shr(chunk2Size, shl(chunk2Size, slot2))
-            let chunk2 := shl(sub(256, chunk2Size), value)
-            sstore(storageSlotIndex, or(cleanedSlot2, chunk2))
-        }
-        // Value fits in one slot 
-        default {
-            // use mask to clean slot
-            let shiftSize := sub(bitsLeftInSlot, bitSize)
-            let mask := shl(shiftSize, sub(shl(bitSize, 1), 1))
-            let cleanedSlot := and(sload(storageSlotIndex), not(mask))
-            let newValue := shl(shiftSize, value)
-            sstore(storageSlotIndex, or(cleanedSlot, newValue))
+                // Second slot: clear left edge and set second chunk
+                storageSlotIndex := add(storageSlotIndex, 1)
+                let slot2 := sload(storageSlotIndex)
+                let cleanedSlot2 := shr(chunk2Size, shl(chunk2Size, slot2))
+                let chunk2 := shl(sub(256, chunk2Size), value)
+                sstore(storageSlotIndex, or(cleanedSlot2, chunk2))
+            }
+            // Value fits in one slot
+            default {
+                // use mask to clean slot
+                let shiftSize := sub(bitsLeftInSlot, bitSize)
+                let mask := shl(shiftSize, sub(shl(bitSize, 1), 1))
+                let cleanedSlot := and(sload(storageSlotIndex), not(mask))
+                let newValue := shl(shiftSize, value)
+                sstore(storageSlotIndex, or(cleanedSlot, newValue))
+            }
         }
     }
-}
 
     struct Addresses {
         uint256[] slots;

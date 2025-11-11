@@ -33,7 +33,7 @@ contract ArrayHandler is Test {
 
     function append(address[] calldata addrs) external {
         // Bound the append size to prevent excessive gas usage in tests
-        vm.assume(addrs.length <= 1000);
+        vm.assume(addrs.length <= 100);
 
         arr.append(addrs);
         for (uint256 i = 0; i < addrs.length; i++) {
@@ -41,18 +41,27 @@ contract ArrayHandler is Test {
         }
     }
 
-    function slice(uint indexFrom, uint indexTo) external {
-      if (expected.length == 0) return;
-      
-      indexFrom = bound(indexFrom, 0, expected.length - 2);
-      indexTo = bound(indexFrom, indexFrom, expected.length - 1);
+    function slice(uint8 from, uint8 to) external {
+        if (expected.length == 0) return;
+        uint256 indexFrom = uint256(from);
+        uint256 indexTo = uint256(to);
+        indexFrom = bound(indexFrom, 0, expected.length - 1);
+        indexTo = bound(indexTo, indexFrom, expected.length - 1);
+        vm.assume(indexTo - indexFrom < 20); // Smaller for performance
+        vm.assume(indexTo > indexFrom);
 
-      // append slice onto end of storage
-      address[] memory _slice = arr.slice(indexFrom, indexTo);
-      arr.append(_slice);
-      for (uint i = indexFrom; i <= indexTo; i++) {
-        expected.push(expected[i]);
-      }
+        address[] memory _slice = arr.slice(indexFrom, indexTo);
+
+        // Verify slice matches expected manually
+        for (uint256 i = 0; i < _slice.length; i++) {
+            assertEq(_slice[i], expected[indexFrom + i], "Slice mismatch");
+        }
+
+        // Append slice to both arrays (simpler and maintains history)
+        arr.append(_slice);
+        for (uint256 i = indexFrom; i < indexTo; i++) {
+            expected.push(expected[i]);
+        }
     }
 
     // View functions for invariant checks

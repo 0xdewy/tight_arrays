@@ -148,7 +148,6 @@ contract UintTest is Test {
             assertEq(arr96.get(i), _uints[uints.length - 1 - i], "failed to set reverse list");
         }
 
-
         // slice should maintain order/values
         uint96[] memory test = arr96.slice(0, _uints.length);
         assertEq(test.length, _uints.length, "slice length bug");

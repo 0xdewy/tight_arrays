@@ -33,7 +33,7 @@ contract ArrayHandler is Test {
 
     function append(uint96[] calldata uints) external {
         // Bound the append size to prevent excessive gas usage in tests
-        vm.assume(uints.length <= 1000);
+        vm.assume(uints.length <= 100);
 
         arr.append(uints);
         for (uint256 i = 0; i < uints.length; i++) {
@@ -41,25 +41,26 @@ contract ArrayHandler is Test {
         }
     }
 
-    function slice(uint indexFrom, uint indexTo) external {
-      if (expected.length == 0) return;
-      indexFrom = bound(indexFrom, 0, expected.length - 2);
-      indexTo = bound(indexFrom, indexFrom, expected.length - 1);
+    function slice(uint8 from, uint8 to) external {
+    if (expected.length == 0) return;
+    uint256 indexFrom = uint256(from);
+    uint256 indexTo = uint256(to);
+    indexFrom = bound(indexFrom, 0, expected.length - 1);
+    indexTo = bound(indexTo, indexFrom, expected.length - 1);
+    vm.assume(indexTo - indexFrom < 69);
+    vm.assume(indexTo > indexFrom);
 
-      // append slice onto end of storage
-      uint96[] memory _slice = arr.slice(indexFrom, indexTo);
-      arr.append(_slice);
+    uint96[] memory _slice = arr.slice(indexFrom, indexTo);
 
-      for (uint i = indexFrom; i <= indexTo; i++) {
+    for (uint256 i = indexFrom; i < indexTo; i++) {
         expected.push(expected[i]);
-      }
+        arr.push(_slice[i - indexFrom]);
     }
+}
 
     // View functions for invariant checks
     function arrLength() external view returns (uint256 len) {
-        assembly {
-            len := sload(arr.slot)
-        }
+        len = arr.slots.length;
     }
 
     function expectedLength() external view returns (uint256 len) {

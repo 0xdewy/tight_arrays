@@ -67,8 +67,6 @@ contract TightAddressTest is Test {
 
     // =========================================Set=================================================
 
-   
-
     function test_fuzz_set(address[2] calldata addrsA, address[2] calldata addrsB) public {
         assertEq(addrsA.length, addrsB.length);
         for (uint256 i = 0; i < addrsA.length; i++) {
